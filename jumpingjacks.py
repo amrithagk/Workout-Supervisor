@@ -9,6 +9,14 @@ pose = mp_pose.Pose()
 
 videoframe = cv.VideoCapture(0)
 
+#Variables
+left_hip_prev = 0
+right_hip_prev = 0
+count = 0
+didJump = False
+up = None
+down = None
+
 #Functions
 
 def calculate_angle(a, b, c):
@@ -27,21 +35,39 @@ def calculate_angle(a, b, c):
     return angle_degrees, ref_int
 
 
-def calculate_hip_displacement(current_left, current_right, prev_left, prev_right):
+def calculate_hip_displacement(left, right, prev_left, prev_right):
 
-    if current_left - prev_left > 0 and current_right - prev_right > 0:
+    global left_hip_prev, right_hip_prev, up, down
+
+    print("Prev", prev_left, prev_right)
+    current_left = left.y
+    current_right = right.y
+    print("Current", current_left, current_right)
+
+    l_disp = current_left - prev_left
+    r_disp = current_right - prev_right
+    print("Disp", l_disp, r_disp)
+
+    left_hip_prev = current_left
+    right_hip_prev = current_right
+
+    if l_disp > 0 and r_disp > 0:
+        up = True
+        down = False
         return True
     
-    return False
+    if l_disp < 0 and r_disp < 0:
+        up = False
+        down = True
 
 
 def display(angle, ref, frame):
 
-    if angle < 150.0:
+    """ if angle < 150.0:
         cv.putText(
-            frame, "{} Not straight", (50, 50), 
+            frame, "{} Not straight", (250, 50), 
             cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv.LINE_AA
-        )    
+        )    """ 
 
     cv.putText(frame, str(angle), ref, 
         cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv.LINE_AA)
@@ -70,18 +96,7 @@ while True:
 
         if results.pose_landmarks:
 
-            count = 0
-            state = ""
-
             landmarks = results.pose_landmarks.landmark
-
-            #print(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value])
-
-            """ angle, ref_point = calculate_angle(
-                landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
-                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
-                landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value]
-            ) """
 
             angle_left_arm, ref_point_left_arm = calculate_angle(
                 landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
@@ -107,11 +122,65 @@ while True:
                 landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value]
             )
 
+            angle_hip_leftknee, ref_point_hipleftknee = calculate_angle(
+                landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value]
+            )
+
+            angle_hip_rightknee, ref_point_hiprightknee = calculate_angle(
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value]
+            )
+
+            angle_shoulder_leftarm, ref_point_shoulder_leftarm = calculate_angle(
+                landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value]
+            )
+
+            angle_shoulder_rightarm, ref_point_shoulder_rightarm = calculate_angle(
+                landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value],
+                landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value]
+            )
+
             display(angle_left_arm, ref_point_left_arm, frame)
             display(angle_right_arm, ref_point_right_arm, frame)
 
             display(angle_left_leg, ref_point_left_leg, frame)
             display(angle_right_leg, ref_point_right_leg, frame)
+
+            display(angle_hip_leftknee, ref_point_hipleftknee, frame)
+            display(angle_hip_rightknee, ref_point_hiprightknee, frame)
+
+            display(angle_shoulder_leftarm, ref_point_shoulder_leftarm, frame)
+            display(angle_shoulder_rightarm, ref_point_shoulder_rightarm, frame)
+
+            calculate_hip_displacement(
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                left_hip_prev, right_hip_prev
+            )
+
+            if up and \
+            angle_left_arm > 150.0 and angle_right_arm > 150.0 \
+            and angle_left_leg > 150.0 and angle_right_leg > 150.0 \
+            and angle_hip_leftknee > 90.0 and angle_hip_rightknee > 90.0 \
+            and angle_shoulder_leftarm > 170.0 and angle_shoulder_rightarm > 170.0:
+                didJump = True
+            
+            if down and didJump \
+            and angle_hip_leftknee < 95.0 and angle_hip_rightknee < 95.0 \
+            and angle_shoulder_leftarm < 50.0 and angle_shoulder_rightarm < 50.0:
+                count += 1
+            
+    cv.putText(
+        frame, "Count: " + str(count), (20, 100), 
+        cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0),
+        2, cv.LINE_AA
+    )
 
     cv.imshow("Output", frame)
 
