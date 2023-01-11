@@ -170,11 +170,16 @@ while True:
             and angle_hip_leftknee > 90.0 and angle_hip_rightknee > 90.0 \
             and angle_shoulder_leftarm > 170.0 and angle_shoulder_rightarm > 170.0:
                 didJump = True
+                cv.putText(frame, "Up", (40, 20), 
+        cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv.LINE_AA)
             
             if down and didJump \
             and angle_hip_leftknee < 95.0 and angle_hip_rightknee < 95.0 \
             and angle_shoulder_leftarm < 50.0 and angle_shoulder_rightarm < 50.0:
                 count += 1
+                didJump = False
+                cv.putText(frame, "Down", (40, 20), 
+        cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv.LINE_AA)
             
     cv.putText(
         frame, "Count: " + str(count), (20, 100), 
